@@ -7,7 +7,6 @@
 // TO DO:
 // CHECK REALLOC
 // FIX MALLOC/FREE (SOMEHOW BROKEN IN AUTOGRADER)
-// QUARANTINING BLOCKS
 
 // Structs
 typedef struct header { // Should be 16 bytes allocated for this, but it's really 13 bytes padded to 16

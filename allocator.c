@@ -622,6 +622,9 @@ int mm_write(void *ptr, size_t offset, const void *src, size_t len) {
     printf("Write | I think it's already free\n");
     return -1;  // Double free or invalid/broken block
   }
+  if (len + offset != hdr->size) {
+    return -1;
+  }
   if (len == 0 || offset == hdr->size) {
     return 0;  // Nothing to write
   }
@@ -822,13 +825,33 @@ void *mm_realloc(void *ptr, size_t new_size) {
     size_t reduction = hdr->size - new_size;
     // Check if we can do it coalesce manually (since free requires 24+16 bytes to auto-coalesce)
     if (next != NULL) { // Coalesce with the next free block
-      // Create a new free block where the new end of the block is
 
       // Delete the old free block
+      freeBlock *next_fb = (freeBlock *)payloadFinder(next);
+      size_t oldFreeSize = next->size;
+      remove_free(&freeListHead, next_fb);
 
-      // Add the pointer
+      // Create a new free block where the new end of the block is
+      header* newFreeBlock = (header *)(ptr + new_size);
+      newFreeBlock->padding = 0;
+      newFreeBlock->status = 0;
+      newFreeBlock->size = reduction + oldFreeSize;
+      // Create new free block struct and insert into free list
+      freeBlock *new_free_block = (freeBlock *)payloadFinder(newFreeBlock);
+      new_free_block->hdr = newFreeBlock;
+      insert_free(&freeListHead, new_free_block);
+      // Checksum
+      newFreeBlock->checksum = checkSumCalc(newFreeBlock);
+      newFreeBlock->checksumNOT = ~newFreeBlock->checksum;
+      newFreeBlock->checksumXOR = newFreeBlock->checksum ^ newFreeBlock->checksumNOT;
 
+      // Update the header
+      hdr->size = new_size;
+      hdr->checksum = checkSumCalc(hdr);  // Update checksum
+      hdr->checksumNOT = ~hdr->checksum;
+      hdr->checksumXOR = hdr->checksum ^ hdr->checksumNOT;
       // Return old pointer
+      return ptr;
     }
     if (prev != NULL) { // Coalesce with the previous block
       // Idk ask pip, worst case just leave it
